@@ -17,7 +17,7 @@ BALAK Checker  Has plenty of Commands . We Have Auth Gates , Charge Gates , Tool
 Click Each of Them Below to Know Them Better .</b>
         """
         WELCOME_BUTTONS = [
-            [BALAK
+            [
                 InlineKeyboardButton("AUTH/B3/VBV", callback_data="AUTH"),
                 InlineKeyboardButton("CHARGE", callback_data="CHARGE")
             ],
