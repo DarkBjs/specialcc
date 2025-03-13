@@ -18,7 +18,6 @@ async def stats(Client, message):
 Contact Bot Owner @BALAK_TRUSTED !</b>"""
             await message.reply_text(resp, message.id)
             return
-BALAK
         chats         = 0
         total_gc      = 0
         redeemed      = 0
