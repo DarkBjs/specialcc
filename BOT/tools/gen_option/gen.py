@@ -3,158 +3,155 @@ import os
 import threading
 import asyncio
 import time
-import csv
 from pyrogram import Client, filters
 from FUNC.usersdb_func import *
 from FUNC.cc_gen import *
 from TOOLS.check_all_func import *
 
-# 📌 List of Public APIs for BIN Lookup
+
 BIN_APIS = [
-    "https://lookup.binlist.net/{}",  # API 1
-    "https://bins.payouts.com/api/{}",  # API 2
-    "https://api.bincodes.com/bin/{}?api_key=YOUR_API_KEY"  # API 3 (Replace with actual key)
+    "https://lookup.binlist.net/",
+    "https://bins.antipublic.cc/bins/",
+    "https://bin-checker.net/api/",
 ]
 
-BIN_FILE = "FILES/bins_all.csv"  # BIN details storage file
 
-# ✅ Ensure BIN storage file exists
-if not os.path.exists("FILES"):
-    os.makedirs("FILES")
-
-if not os.path.exists(BIN_FILE):
-    with open(BIN_FILE, "w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["BIN", "Brand", "Type", "Level", "Bank", "Country", "Flag", "Currency"])
-
-
-async def fetch_bin_from_api(bin_number):
-    """Fetch BIN details from multiple public APIs"""
-    for api_url in BIN_APIS:
-        try:
-            url = api_url.format(bin_number)
-            async with httpx.AsyncClient(timeout=10) as client:
-                response = await client.get(url)
+async def fetch_bin_info(bin_number):
+    async with httpx.AsyncClient(timeout=10) as session:
+        for api in BIN_APIS:
+            try:
+                response = await session.get(f"{api}{bin_number}")
                 if response.status_code == 200:
-                    data = response.json()
-                    # Extract necessary details
-                    return {
-                        "brand": data.get("scheme", "N/A").upper(),
-                        "type": data.get("type", "N/A").upper(),
-                        "level": data.get("brand", "N/A").upper(),
-                        "bank": data.get("bank", {}).get("name", "N/A"),
-                        "country": data.get("country", {}).get("name", "N/A"),
-                        "flag": data.get("country", {}).get("emoji", "🏳️"),
-                        "currency": data.get("country", {}).get("currency", "N/A")
-                    }
-        except Exception:
-            continue  # Try next API if one fails
-    return None  # If all APIs fail
+                    return response.json()
+            except Exception:
+                continue  
+    return None  
 
 
-def save_bin_details(bin_number, bin_data):
-    """Save unique BIN details to CSV (No duplicates)"""
-    with open(BIN_FILE, "r", newline="") as file:
-        reader = csv.reader(file)
-        bin_list = [row[0] for row in reader]
-
-    if bin_number not in bin_list:  # Avoid duplicate entries
-        with open(BIN_FILE, "a", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow([
-                bin_number, bin_data["brand"], bin_data["type"], bin_data["level"],
-                bin_data["bank"], bin_data["country"], bin_data["flag"], bin_data["currency"]
-            ])
-
-
-def generate_code_blocks(all_cards):
-    """Format generated cards in <code> blocks for Telegram."""
-    return "\n".join([f"<code>{card}</code>" for card in all_cards.split("\n")])
+def format_cards(cards_list):
+    return "\n".join([f"<code>{card}</code>" for card in cards_list.split("\n")])
 
 
 @Client.on_message(filters.command("gen", [".", "/"]))
 def multi(client, message):
-    t1 = threading.Thread(target=bcall, args=(client, message))
-    t1.start()
+    threading.Thread(target=run_gen_command, args=(client, message)).start()
 
 
-def bcall(client, message):
+def run_gen_command(client, message):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(gen_cmd(client, message))
+    loop.run_until_complete(gen_command(client, message))
     loop.close()
 
 
-async def gen_cmd(client, message):
+async def gen_command(client, message):
     try:
         user_id = str(message.from_user.id)
-        checkall = await check_all_thing(client, message)
-        if not checkall[0]:
+        check_result = await check_all_thing(client, message)
+        if not check_result[0]:
             return
 
-        role = checkall[1]
+        role = check_result[1]
 
         try:
-            ccsdata = message.text.split()[1]
-            cc_parts = ccsdata.split("|")
+            cc_input = message.text.split()[1]
+            cc_parts = cc_input.split("|")
             cc = cc_parts[0]
             mes = cc_parts[1] if len(cc_parts) > 1 else None
             ano = cc_parts[2] if len(cc_parts) > 2 else None
             cvv = cc_parts[3] if len(cc_parts) > 3 else None
         except IndexError:
-            await message.reply_text(
-                "❌ 𝗪𝗿𝗼𝗻𝗴 𝗙𝗼𝗿𝗺𝗮𝘁\n\nUsage:\n<code>/gen 447697</code>\n<code>/gen 447697|12|23</code>\n",
-                message.id
-            )
+            error_msg = """
+𝗜𝗡𝗖𝗢𝗥𝗥𝗘𝗖𝗧 𝗙𝗢𝗥𝗠𝗔𝗧 ❌
+
+𝗨𝗦𝗔𝗚𝗘:
+- 𝗢𝗻𝗹𝘆 𝗕𝗜𝗡:  
+<code>/gen 447697</code>
+
+- 𝗪𝗶𝘁𝗵 𝗘𝘅𝗽𝗶𝗿𝗮𝘁𝗶𝗼𝗻:  
+<code>/gen 447697|12</code>  
+<code>/gen 447697|12|23</code>  
+
+- 𝗪𝗶𝘁𝗵 𝗖𝗩𝗩:  
+<code>/gen 447697|12|23|123</code>
+
+- 𝗪𝗶𝘁𝗵 𝗖𝘂𝘀𝘁𝗼𝗺 𝗔𝗺𝗼𝘂𝗻𝘁:  
+<code>/gen 447697 100</code>
+"""
+            await message.reply_text(error_msg, message.id)
             return
 
-        # Default generation amount
-        amount = 10
+        amount = 10  
         try:
             amount = int(message.text.split()[2])
         except (IndexError, ValueError):
             pass
 
-        # Restrict amount to avoid abuse
+        loading_msg = await message.reply_text("𝗙𝗲𝘁𝗰𝗵𝗶𝗻𝗴 𝗕𝗜𝗡 𝗜𝗻𝗳𝗼 & 𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗶𝗻𝗴 𝗖𝗖...\n𝗣𝗹𝗲𝗮𝘀𝗲 𝗪𝗮𝗶𝘁 ⏳", message.id)
+
+        start_time = time.perf_counter()
+
+        bin_info = await fetch_bin_info(cc[:6])
+
+        if bin_info:
+            brand = bin_info.get("scheme", "Unknown").upper()
+            type_ = bin_info.get("type", "Unknown").upper()
+            level = bin_info.get("brand", "Unknown").upper()
+            bank = bin_info.get("bank", {}).get("name", "Unknown")
+            country = bin_info.get("country", {}).get("name", "Unknown")
+            flag = bin_info.get("country", {}).get("emoji", "")
+            currency = bin_info.get("country", {}).get("currency", "Unknown")
+        else:
+            brand, type_, level, bank, country, flag, currency = ["Unknown"] * 7
+
         if amount > 10000:
-            await message.reply_text("⚠️ 𝗠𝗮𝘅 𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗶𝗼𝗻 𝗟𝗶𝗺𝗶𝘁 𝟭𝟬𝗞.", message.id)
+            await loading_msg.edit_text("𝗟𝗜𝗠𝗜𝗧 𝗥𝗘𝗔𝗖𝗛𝗘𝗗 ⚠️\n𝗠𝗔𝗫 𝗚𝗘𝗡𝗘𝗥𝗔𝗧𝗜𝗢𝗡 𝗟𝗜𝗠𝗜𝗧: 𝟭𝟬𝗞.", message.id)
             return
 
-        delete = await message.reply_text("<b>𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗶𝗻𝗴...</b>", message.id)
-        start = time.perf_counter()
-
-        # Fetch BIN Details
-        bin_info = await fetch_bin_from_api(cc[:6])
-        if not bin_info:
-            await message.reply_text("⚠️ 𝗕𝗜𝗡 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱", message.id)
-            return
-        
-        # Save BIN details if new
-        save_bin_details(cc[:6], bin_info)
-
-        # Generate Cards
         all_cards = await luhn_card_genarator(cc, mes, ano, cvv, amount)
 
-        # Prepare Response
-        if amount == 10:
-            resp = f"""
-✔️ 𝐂𝐂 𝐆𝐞𝐧𝐞𝐫𝐚𝐭𝐞𝐝 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲!
+        if amount <= 10:
+            response = f"""
+𝗖𝗔𝗥𝗗𝗦 𝗚𝗘𝗡𝗘𝗥𝗔𝗧𝗘𝗗 ✅  
 
-- 𝐁𝐈𝐍: <code>{cc}</code>
-- 𝐀𝐦𝐨𝐮𝐧𝐭: {amount}
+𝗕𝗜𝗡: <code>{cc}</code>  
+𝗔𝗠𝗢𝗨𝗡𝗧: {amount}  
 
-{generate_code_blocks(all_cards)}
+𝗜𝗡𝗙𝗢: {brand} - {type_} - {level}  
+𝗕𝗔𝗡𝗞: {bank}  
+𝗖𝗢𝗨𝗡𝗧𝗥𝗬: {country} {flag}  
+𝗖𝗨𝗥𝗥𝗘𝗡𝗖𝗬: {currency}  
 
-- 𝗜𝗻𝗳𝗼: {bin_info["brand"]} - {bin_info["type"]} - {bin_info["level"]}
-- 𝐁𝐚𝐧𝐤: {bin_info["bank"]} 🏛  
-- 𝐂𝐨𝐮𝐧𝐭𝐫𝐲: {bin_info["country"]} {bin_info["flag"]} - {bin_info["currency"]}
+𝗧𝗜𝗠𝗘 𝗧𝗔𝗞𝗘𝗡: {time.perf_counter() - start_time:.2f} 𝘀𝗲𝗰𝗼𝗻𝗱𝘀  
+𝗖𝗛𝗘𝗖𝗞𝗘𝗗 𝗕𝗬: <a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a> [{role}]
 
-- ⏳ 𝐓𝐢𝐦𝐞: {time.perf_counter() - start:0.2f} 𝐬𝐞𝐜
-- 🔍 𝐂𝐡𝐞𝐜𝐤𝐞𝐝: <a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a> ({role})
+{format_cards(all_cards)}
 """
-            await client.delete_messages(message.chat.id, delete.id)
-            await message.reply_text(resp, message.id)
+            await client.delete_messages(message.chat.id, loading_msg.id)
+            await message.reply_text(response, message.id)
+
+        else:
+            filename = f"downloads/{amount}x_CC_Generated_By_{user_id}.txt"
+            with open(filename, "w") as file:
+                file.write(all_cards)
+
+            caption = f"""
+𝗕𝗜𝗡: <code>{cc}</code>  
+𝗔𝗠𝗢𝗨𝗡𝗧: {amount}  
+
+𝗜𝗡𝗙𝗢: {brand} - {type_} - {level}  
+𝗕𝗔𝗡𝗞: {bank}  
+𝗖𝗢𝗨𝗡𝗧𝗥𝗬: {country} {flag}  
+𝗖𝗨𝗥𝗥𝗘𝗡𝗖𝗬: {currency}  
+
+𝗧𝗜𝗠𝗘 𝗧𝗔𝗞𝗘𝗡: {time.perf_counter() - start_time:.2f} 𝘀𝗲𝗰𝗼𝗻𝗱𝘀  
+𝗖𝗛𝗘𝗖𝗞𝗘𝗗 𝗕𝗬: <a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a> [{role}]
+"""
+            await client.delete_messages(message.chat.id, loading_msg.id)
+            await message.reply_document(filename, caption=caption, reply_to_message_id=message.id)
+            os.remove(filename)
 
     except Exception as e:
         import traceback
-        await error_log(traceback.format_exc())
+        await message.reply_text("𝗘𝗥𝗥𝗢𝗥 ❌\n𝗙𝗔𝗜𝗟𝗘𝗗 𝗧𝗢 𝗚𝗘𝗡𝗘𝗥𝗔𝗧𝗘.", message.id)
+        print(traceback.format_exc())
