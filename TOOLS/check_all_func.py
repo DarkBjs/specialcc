@@ -44,7 +44,7 @@ Type /register to Continue
             resp = f"""<b>
 Premium Users Required ⚠️
 
-Message: Only Premium Users are Allowed to use bot in Personal . Although You Can Use Bot Free Here https://t.me/MASTERx
+Message: Only Premium Users are Allowed to use bot in Personal . Although You Can Use Bot Free Here https://t.me/+HKyysBkUx8llYTY9
 Buy Premium Plan Using /buy to Continue
 </b>"""
             await message.reply_text(resp ,  reply_to_message_id = message.id)
