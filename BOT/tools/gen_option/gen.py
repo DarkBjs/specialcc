@@ -127,7 +127,7 @@ Custom Amount: <code>/gen 447697 100</code>""",
 
         # If amount > 10, send as a document
         else:
-            filename = f"downloads/{amount}x_CC_Generated_By_{user_id}.txt"
+            filename = f"downloads_{amount}x_CC_Generated_By_{user_id}.txt"
             with open(filename, "w") as f:
                 f.write(all_cards)
 
